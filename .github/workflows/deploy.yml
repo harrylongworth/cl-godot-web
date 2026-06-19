@@ -1,0 +1,39 @@
+name: Build & Deploy Godot Web to Cloudflare Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot + export templates
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: |
+            /usr/local/bin/godot
+            ~/.local/share/godot/export_templates
+          key: godot-${{ env.GODOT_VERSION }}
+        env:
+          GODOT_VERSION: 4.7-stable
+
+      - name: Install Godot + Web templates
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: bash scripts/install-godot.sh
+        env:
+          GODOT_VERSION: 4.7-stable
+
+      - name: Export Web build -> dist/
+        run: bash scripts/build-web.sh
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=cl-godot-web

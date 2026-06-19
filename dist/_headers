@@ -1,0 +1,35 @@
+# Cloudflare Pages headers for a Godot 4 Web build.
+# This file is copied into dist/ by scripts/build-web.sh.
+
+# Godot's threaded Web export uses SharedArrayBuffer, which requires the page
+# to be cross-origin isolated. Without these two headers the game fails to
+# start with a SharedArrayBuffer / "cross origin isolation" error.
+/*
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp
+  Cross-Origin-Resource-Policy: same-origin
+
+# The assets below are stored already-gzipped (see build-web.sh) to stay under
+# Cloudflare Pages' 25 MiB per-file limit. Declare the encoding so Cloudflare
+# serves the bytes verbatim and the browser transparently decompresses them.
+/index.wasm
+  Content-Type: application/wasm
+  Content-Encoding: gzip
+  Cache-Control: public, max-age=31536000, immutable
+
+/index.pck
+  Content-Encoding: gzip
+  Cache-Control: public, max-age=31536000, immutable
+
+/index.js
+  Content-Type: text/javascript
+  Content-Encoding: gzip
+  Cache-Control: public, max-age=31536000, immutable
+
+/index.audio.worklet.js
+  Content-Type: text/javascript
+  Content-Encoding: gzip
+
+/index.audio.position.worklet.js
+  Content-Type: text/javascript
+  Content-Encoding: gzip

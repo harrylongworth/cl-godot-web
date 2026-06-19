@@ -1,0 +1,6 @@
+# Cloudflare Pages project config.
+# Deploy locally with:  npx wrangler pages deploy
+# (build first with scripts/build-web.sh so dist/ exists)
+name = "cl-godot-web"
+compatibility_date = "2026-06-19"
+pages_build_output_dir = "dist"

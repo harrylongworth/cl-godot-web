@@ -15,3 +15,7 @@ export_credentials.cfg
 .mono/
 data_*/
 mono_crash.*.json
+
+# Raw (uncompressed) web export. dist/ is the Cloudflare-ready output and IS
+# committed so the build can be deployed without re-running Godot.
+/build/
