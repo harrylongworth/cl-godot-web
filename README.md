@@ -16,6 +16,20 @@ what we want to measure.
 | `index.pck`   | 8 KB   | ~4 KB  | Our actual game data.                  |
 | everything else | <40 KB | —    | html, icons, audio worklets.           |
 
+### With the custom slim engine template
+
+`scripts/build-template.sh` recompiles the engine size-optimized and 2D-only
+(see below). The shipped `custom_template/web_release.zip` is built that way, so
+`dist/` uses it by default:
+
+| `index.wasm` | Raw   | gzip   |
+| ------------ | ----- | ------ |
+| Stock 4.7    | 38 MB | 9.7 MB |
+| Custom slim  | 27 MB | 7.1 MB |
+
+≈ **29% smaller** on both disk and download. Still over the 25 MiB raw limit, so
+the worker is still needed — but the download players feel drops to ~7 MB.
+
 **Takeaways for the size investigation:**
 
 1. **The 25 MiB wall.** Cloudflare Pages (and Workers static assets) reject any
@@ -94,13 +108,25 @@ and `CLOUDFLARE_ACCOUNT_ID`; pushes to `main` build and deploy automatically.
 > Godot needs the cross-origin-isolation headers, so it must be served over HTTP
 > by Cloudflare (or a local server that sets COOP/COEP).
 
-## Further size reductions to test
+## The custom engine template
 
-- **Brotli instead of gzip** — ~20% smaller wasm; swap `gzip` for `brotli` in
-  `build-web.sh` and change `Content-Encoding` to `br` in `cloudflare/_worker.js`.
-- **`nothreads` template** — set `variant/thread_support=false` in
-  `export_presets.cfg`. Smaller, single-threaded, and drops the COOP/COEP
-  requirement entirely (no `SharedArrayBuffer`).
-- **Custom engine build** — compile Godot's web export template with unused
-  modules disabled (`module_*_enabled=no`) for the biggest wins. This is the only
-  way to meaningfully shrink the 38 MB figure.
+`scripts/build-template.sh` rebuilds Godot's Web export template (Emscripten
+4.0.11, matching Godot 4.7's CI) with:
+
+- `optimize=size lto=full production=yes` — `-Os` + whole-program dead-code elim
+- `disable_3d=yes` — drops the entire 3D stack (this is a 2D game)
+- `deprecated=no` — drops deprecated APIs
+- `module_text_server_adv_enabled=no module_text_server_fb_enabled=yes` — swaps
+  the ICU-heavy advanced text server for the fallback (no complex-script/BiDi
+  shaping, but several MB lighter)
+
+Output: `custom_template/web_release.zip`, which `game/export_presets.cfg` points
+at via `custom_template/release`. It's a ~45 min compile.
+
+### Further reductions to try
+
+- **Build profile** — have the editor scan the project and disable every unused
+  class (`build_profile=res://x.build`). Biggest remaining win for a minimal game.
+- **`nothreads` template** — `threads=no` (and `variant/thread_support=false` in
+  the preset). Drops the COOP/COEP requirement entirely, at the cost of threads.
+- **`wasm-opt -Oz`** (Binaryen) as a post-step for a final few percent.
