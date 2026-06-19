@@ -15,9 +15,10 @@ The game adds an on-screen analog joystick for touch devices using Godot 4.7's
 existing `move_*` input actions. We picked the engine-native node over a
 third-party add-on (e.g. MarcoFazioRandom's *Virtual Joystick*, which it was
 upstreamed from): it needs no vendored files and adds **~0 bytes** to the
-download since the engine is already in `index.wasm`. The joystick is shown only
-during a round and only on touchscreens; the existing HUD **Start** button
-handles the one discrete action and works with touch via Godot's default
+download since the engine is already in `index.wasm`. It runs in *dynamic*
+mode — touch anywhere during a round and the stick appears under your thumb —
+and only on touchscreens; the existing HUD **Start** button handles the one
+discrete action and works with touch via Godot's default
 `emulate_mouse_from_touch`.
 
 ## Measured sizes (Godot 4.7-stable, release, GL Compatibility)

@@ -55,16 +55,13 @@ stream = ExtResource("6_hp1r0")
 [node name="TouchControls" type="CanvasLayer" parent="."]
 
 [node name="VirtualJoystick" type="VirtualJoystick" parent="TouchControls"]
-anchors_preset = 2
-anchor_top = 1.0
+anchors_preset = 15
+anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 20.0
-offset_top = -280.0
-offset_right = 280.0
-offset_bottom = -20.0
-grow_vertical = 0
-joystick_mode = 0
-visibility_mode = 0
+grow_horizontal = 2
+grow_vertical = 2
+joystick_mode = 1
+visibility_mode = 1
 joystick_size = 120.0
 tip_size = 60.0
 deadzone_ratio = 0.15
