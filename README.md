@@ -30,24 +30,33 @@ what we want to measure.
 
 `scripts/build-web.sh` exports the project and then **pre-gzips** the heavy
 assets (`index.wasm`, `index.pck`, `index.js`, audio worklets), keeping their
-original filenames. `cloudflare/_headers` then declares `Content-Encoding: gzip`
-on those paths, so Cloudflare serves the stored bytes verbatim and the browser's
-`fetch()` decompresses them transparently.
+original filenames. The largest file Cloudflare stores drops to **9.7 MB** —
+comfortably under the limit — while the browser still receives a valid 38 MB
+wasm module.
 
-Result: the largest file Cloudflare stores is **9.7 MB** — comfortably under the
-limit — while the browser still receives a valid 38 MB wasm module.
+The catch with Cloudflare **Pages** specifically: it **strips `Content-Encoding`
+from the `_headers` file** *and* auto-Brotli-compresses responses. A pre-gzipped
+file served via `_headers` therefore ends up Brotli-wrapped around gzip bytes —
+double-encoded and unreadable (`Uncaught SyntaxError: Invalid or unexpected
+token`).
 
-`cloudflare/_headers` also sets the cross-origin isolation headers
-(`Cross-Origin-Opener-Policy: same-origin` + `Cross-Origin-Embedder-Policy:
-require-corp`) that Godot's **threaded** web build requires for
-`SharedArrayBuffer`. Without them the game fails to boot.
+The fix is a small **advanced-mode worker** (`cloudflare/_worker.js`, copied into
+`dist/` at build time). Because it serves every request, it can:
+
+- declare `Content-Encoding: gzip` on the pre-compressed assets, so the edge
+  doesn't re-compress and the browser inflates them correctly; and
+- set the cross-origin isolation headers
+  (`Cross-Origin-Opener-Policy: same-origin` +
+  `Cross-Origin-Embedder-Policy: require-corp`) that Godot's **threaded** build
+  needs for `SharedArrayBuffer`. (In advanced mode the `_headers` file is
+  ignored, so these live in the worker.)
 
 ## Layout
 
 ```
 game/                 Godot project (project.godot, Main.tscn, Main.gd, icon.svg)
   export_presets.cfg  Web export preset
-cloudflare/_headers   Headers copied into dist/ at build time
+cloudflare/_worker.js Advanced-mode worker copied into dist/ at build time
 scripts/
   install-godot.sh    Fetch Godot 4.7 + Web export templates
   build-web.sh        Export -> gzip -> dist/  (Cloudflare-ready)
@@ -83,8 +92,8 @@ and `CLOUDFLARE_ACCOUNT_ID`; pushes to `main` build and deploy automatically.
 
 ## Further size reductions to test
 
-- **Brotli instead of gzip** — ~20% smaller wasm; swap `gzip` for `brotli`/`zstd`
-  in `build-web.sh` and update `Content-Encoding` in `_headers`.
+- **Brotli instead of gzip** — ~20% smaller wasm; swap `gzip` for `brotli` in
+  `build-web.sh` and change `Content-Encoding` to `br` in `cloudflare/_worker.js`.
 - **`nothreads` template** — set `variant/thread_support=false` in
   `export_presets.cfg`. Smaller, single-threaded, and drops the COOP/COEP
   requirement entirely (no `SharedArrayBuffer`).

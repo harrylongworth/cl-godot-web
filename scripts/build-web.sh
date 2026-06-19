@@ -37,7 +37,9 @@ echo "==> Building Cloudflare deploy dir (dist/)"
 cp -r "$RAW_DIR"/. "$DIST_DIR"/
 
 # Pre-compress the heavy assets. Filenames are preserved; the bytes are gzip.
-# dist/_headers declares Content-Encoding so Cloudflare serves them verbatim.
+# The advanced-mode _worker.js declares Content-Encoding so the browser can read
+# them (Cloudflare Pages strips Content-Encoding from _headers, so a worker is
+# required rather than a plain _headers entry).
 for f in index.wasm index.pck index.js index.audio.worklet.js index.audio.position.worklet.js; do
 	if [ -f "$DIST_DIR/$f" ]; then
 		gzip -9 -k -f "$DIST_DIR/$f"
@@ -45,7 +47,9 @@ for f in index.wasm index.pck index.js index.audio.worklet.js index.audio.positi
 	fi
 done
 
-cp "$ROOT/cloudflare/_headers" "$DIST_DIR/_headers"
+# Advanced-mode worker handles Content-Encoding + cross-origin isolation headers.
+# (In advanced mode the _headers file is ignored, so everything lives here.)
+cp "$ROOT/cloudflare/_worker.js" "$DIST_DIR/_worker.js"
 
 echo "==> dist/ sizes (what Cloudflare stores)"
 du -h "$DIST_DIR"/* | sort -h
