@@ -28,28 +28,32 @@ what we want to measure.
 
 ## How this repo solves the 25 MiB limit
 
-`scripts/build-web.sh` exports the project and then **pre-gzips** the heavy
-assets (`index.wasm`, `index.pck`, `index.js`, audio worklets), keeping their
-original filenames. The largest file Cloudflare stores drops to **9.7 MB** —
-comfortably under the limit — while the browser still receives a valid 38 MB
-wasm module.
+Only `index.wasm` (~38 MB) exceeds Cloudflare Pages' 25 MiB per-file limit, so
+`scripts/build-web.sh` **pre-gzips just that one file** (~10 MB stored, filename
+preserved). Every other file stays raw.
 
-The catch with Cloudflare **Pages** specifically: it **strips `Content-Encoding`
-from the `_headers` file** *and* auto-Brotli-compresses responses. A pre-gzipped
-file served via `_headers` therefore ends up Brotli-wrapped around gzip bytes —
-double-encoded and unreadable (`Uncaught SyntaxError: Invalid or unexpected
-token`).
+The tricky part is serving the gzipped wasm. On Cloudflare you **cannot**:
 
-The fix is a small **advanced-mode worker** (`cloudflare/_worker.js`, copied into
-`dist/` at build time). Because it serves every request, it can:
+- set `Content-Encoding` in the `_headers` file — Pages strips it; or
+- set `Content-Encoding` in a Worker either — Cloudflare strips it from Worker
+  responses and then Brotli-compresses the body itself. A relabeled gzip file
+  ends up Brotli-wrapped around gzip bytes — double-encoded and unreadable
+  (`Uncaught SyntaxError: Invalid or unexpected token`).
 
-- declare `Content-Encoding: gzip` on the pre-compressed assets, so the edge
-  doesn't re-compress and the browser inflates them correctly; and
-- set the cross-origin isolation headers
-  (`Cross-Origin-Opener-Policy: same-origin` +
-  `Cross-Origin-Embedder-Policy: require-corp`) that Godot's **threaded** build
-  needs for `SharedArrayBuffer`. (In advanced mode the `_headers` file is
-  ignored, so these live in the worker.)
+So the fix (`cloudflare/_worker.js`, an advanced-mode worker copied into `dist/`)
+**decompresses the wasm at the edge** and hands Cloudflare plain bytes;
+Cloudflare then applies its own correct compression on the way out. Everything
+else is a normal raw asset that Cloudflare compresses natively.
+
+The worker also sets the cross-origin isolation headers
+(`Cross-Origin-Opener-Policy: same-origin` +
+`Cross-Origin-Embedder-Policy: require-corp`) that Godot's **threaded** build
+needs for `SharedArrayBuffer` — in advanced mode the `_headers` file is ignored,
+so these live in the worker.
+
+> If the custom slimmed-down engine template (see `scripts/build-template.sh`)
+> brings the wasm under 25 MB, none of this is needed: store every file raw, set
+> COOP/COEP in a plain `_headers` file, and let Cloudflare do all compression.
 
 ## Layout
 

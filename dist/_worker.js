@@ -1,40 +1,52 @@
 // Cloudflare Pages advanced-mode worker for a Godot 4 Web build.
 //
-// Why this exists:
-//   Godot's release wasm is ~38 MB, over Cloudflare's 25 MiB per-file limit, so
-//   scripts/build-web.sh stores the heavy assets pre-gzipped (~10 MB). The catch:
-//   Cloudflare Pages strips `Content-Encoding` from the `_headers` file AND
-//   auto-Brotli-compresses responses, so a pre-gzipped file ends up
-//   double-encoded and unreadable by the browser.
+// Only index.wasm is a problem: at ~38 MB it exceeds Cloudflare Pages' 25 MiB
+// per-file limit, so scripts/build-web.sh stores it pre-gzipped (~10 MB). The
+// catch: Cloudflare strips a manually-set Content-Encoding from a Worker
+// response and then compresses the body itself, so we cannot simply relabel the
+// gzip bytes. Instead we DECOMPRESS the wasm here and hand Cloudflare plain
+// bytes; Cloudflare then applies its own (correct) Brotli/gzip on egress.
 //
-//   In advanced mode this worker serves every request, so we can declare the
-//   correct `Content-Encoding: gzip` ourselves. The edge sees an already-encoded
-//   response and won't re-compress it, and the browser transparently inflates it.
-//
-// Note: in advanced mode the `_headers` file is ignored, so the cross-origin
-// isolation headers Godot's threaded build needs (SharedArrayBuffer) are set
-// here too.
+// Every other asset is stored uncompressed and served normally. In advanced
+// mode the _headers file is ignored, so the cross-origin isolation headers
+// Godot's threaded build needs (SharedArrayBuffer) are set here for all assets.
 
-const GZIPPED = /\.(wasm|pck|js)$/;
+function isolate(headers) {
+  headers.set("Cross-Origin-Opener-Policy", "same-origin");
+  headers.set("Cross-Origin-Embedder-Policy", "require-corp");
+  headers.set("Cross-Origin-Resource-Policy", "same-origin");
+}
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    const asset = await env.ASSETS.fetch(request);
 
-    const headers = new Headers(asset.headers);
-    headers.set("Cross-Origin-Opener-Policy", "same-origin");
-    headers.set("Cross-Origin-Embedder-Policy", "require-corp");
-    headers.set("Cross-Origin-Resource-Policy", "same-origin");
+    if (url.pathname.endsWith("/index.wasm")) {
+      // Fetch the raw stored bytes with no edge transform, then gunzip.
+      const probe = new Headers(request.headers);
+      probe.delete("Accept-Encoding");
+      probe.delete("Range");
+      const asset = await env.ASSETS.fetch(
+        new Request(new URL("/index.wasm", url), { method: "GET", headers: probe })
+      );
 
-    if (GZIPPED.test(url.pathname)) {
-      // These assets are stored already gzip-compressed by build-web.sh.
-      headers.set("Content-Encoding", "gzip");
-      // Content-Length from the asset is the compressed size; drop it and let
-      // the runtime frame the response so a re-compress pass can't desync it.
-      headers.delete("Content-Length");
+      if (asset.ok && asset.body) {
+        const headers = new Headers(asset.headers);
+        headers.delete("Content-Encoding");
+        headers.delete("Content-Length");
+        headers.set("Content-Type", "application/wasm");
+        headers.set("Cache-Control", "public, max-age=31536000, immutable");
+        isolate(headers);
+        return new Response(asset.body.pipeThrough(new DecompressionStream("gzip")), {
+          status: 200,
+          headers,
+        });
+      }
     }
 
+    const asset = await env.ASSETS.fetch(request);
+    const headers = new Headers(asset.headers);
+    isolate(headers);
     return new Response(asset.body, {
       status: asset.status,
       statusText: asset.statusText,

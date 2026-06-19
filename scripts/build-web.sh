@@ -36,16 +36,14 @@ du -h "$RAW_DIR"/* | sort -h
 echo "==> Building Cloudflare deploy dir (dist/)"
 cp -r "$RAW_DIR"/. "$DIST_DIR"/
 
-# Pre-compress the heavy assets. Filenames are preserved; the bytes are gzip.
-# The advanced-mode _worker.js declares Content-Encoding so the browser can read
-# them (Cloudflare Pages strips Content-Encoding from _headers, so a worker is
-# required rather than a plain _headers entry).
-for f in index.wasm index.pck index.js index.audio.worklet.js index.audio.position.worklet.js; do
-	if [ -f "$DIST_DIR/$f" ]; then
-		gzip -9 -k -f "$DIST_DIR/$f"
-		mv "$DIST_DIR/$f.gz" "$DIST_DIR/$f"
-	fi
-done
+# Only index.wasm exceeds Cloudflare Pages' 25 MiB per-file limit, so it's the
+# only file we pre-gzip (filename preserved; bytes are gzip). The advanced-mode
+# _worker.js decompresses it at the edge. Every other file stays raw and is
+# compressed natively by Cloudflare.
+if [ -f "$DIST_DIR/index.wasm" ]; then
+	gzip -9 -k -f "$DIST_DIR/index.wasm"
+	mv "$DIST_DIR/index.wasm.gz" "$DIST_DIR/index.wasm"
+fi
 
 # Advanced-mode worker handles Content-Encoding + cross-origin isolation headers.
 # (In advanced mode the _headers file is ignored, so everything lives here.)
