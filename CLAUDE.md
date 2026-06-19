@@ -62,6 +62,11 @@ caching and the fix wouldn't take effect until the cache was purged.
   Everything** (or purge the specific URL), then hard-refresh.
 - Only put `immutable` on content that truly never changes at that URL (the
   wasm here). Diagnose with `cf-cache-status: HIT` + a non-zero `age`.
+- **While iterating**, turn on **Development Mode** (Caching → Configuration →
+  Development Mode) to bypass the edge cache entirely — no purges needed per
+  deploy. It auto-expires after 3 hours. **Re-enable caching for production**
+  (you *want* the 7 MB wasm cached for repeat visitors) and purge once after the
+  final deploy.
 
 ## Diagnostics that cut through the confusion
 
