@@ -3,12 +3,20 @@ extends Node
 @export var mob_scene: PackedScene
 var score
 
+func _ready():
+	# Touch controls only belong on screen during a round, never over the menu
+	# or the game-over button. The joystick itself stays hidden on non-touch
+	# devices (its visibility_mode is Touchscreen Only).
+	$TouchControls.hide()
+
+
 func game_over():
 	$ScoreTimer.stop()
 	$MobTimer.stop()
 	$HUD.show_game_over()
 	$Music.stop()
 	$DeathSound.play()
+	$TouchControls.hide()
 
 
 func new_game():
@@ -19,6 +27,7 @@ func new_game():
 	$HUD.update_score(score)
 	$HUD.show_message("Get Ready")
 	$Music.play()
+	$TouchControls.show()
 
 
 func _on_MobTimer_timeout():

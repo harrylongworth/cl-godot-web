@@ -8,6 +8,18 @@ tutorial (sprites, a font, a music loop and a sound effect) — so that the
 payload now includes *real game content* on top of the engine. That lets us
 measure how actual assets move the numbers, not just the engine baseline.
 
+## Mobile controls
+
+The game adds an on-screen analog joystick for touch devices using Godot 4.7's
+**built-in `VirtualJoystick`** node (`main.tscn` → `TouchControls`), wired to the
+existing `move_*` input actions. We picked the engine-native node over a
+third-party add-on (e.g. MarcoFazioRandom's *Virtual Joystick*, which it was
+upstreamed from): it needs no vendored files and adds **~0 bytes** to the
+download since the engine is already in `index.wasm`. The joystick is shown only
+during a round and only on touchscreens; the existing HUD **Start** button
+handles the one discrete action and works with touch via Godot's default
+`emulate_mouse_from_touch`.
+
 ## Measured sizes (Godot 4.7-stable, release, GL Compatibility)
 
 | File          | Raw    | gzip   | Notes                                  |

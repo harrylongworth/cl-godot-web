@@ -52,6 +52,27 @@ stream = ExtResource("5_55d8h")
 [node name="DeathSound" type="AudioStreamPlayer" parent="." unique_id=1715684712]
 stream = ExtResource("6_hp1r0")
 
+[node name="TouchControls" type="CanvasLayer" parent="."]
+
+[node name="VirtualJoystick" type="VirtualJoystick" parent="TouchControls"]
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_top = -280.0
+offset_right = 280.0
+offset_bottom = -20.0
+grow_vertical = 0
+joystick_mode = 0
+visibility_mode = 0
+joystick_size = 120.0
+tip_size = 60.0
+deadzone_ratio = 0.15
+action_left = &"move_left"
+action_right = &"move_right"
+action_up = &"move_up"
+action_down = &"move_down"
+
 [connection signal="hit" from="Player" to="." method="game_over"]
 [connection signal="timeout" from="MobTimer" to="." method="_on_MobTimer_timeout"]
 [connection signal="timeout" from="ScoreTimer" to="." method="_on_ScoreTimer_timeout"]
