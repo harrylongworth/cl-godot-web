@@ -3,9 +3,10 @@
 A **minimal Godot 4.7 web game** wired up for deployment to **Cloudflare Pages**,
 built specifically to surface and test Godot's web-export *size* issues.
 
-The game itself is deliberately trivial (a bouncing icon + an FPS readout) so
-that essentially **all** of the payload is the Godot engine — which is exactly
-what we want to measure.
+The game itself is **Dodge the Creeps** — Godot's official "Your first 2D game"
+tutorial (sprites, a font, a music loop and a sound effect) — so that the
+payload now includes *real game content* on top of the engine. That lets us
+measure how actual assets move the numbers, not just the engine baseline.
 
 ## Measured sizes (Godot 4.7-stable, release, GL Compatibility)
 
@@ -13,8 +14,15 @@ what we want to measure.
 | ------------- | ------ | ------ | -------------------------------------- |
 | `index.wasm`  | 38 MB  | 9.7 MB | The engine. This is the whole problem. |
 | `index.js`    | 308 KB | 73 KB  | Loader / glue code.                    |
-| `index.pck`   | 8 KB   | ~4 KB  | Our actual game data.                  |
+| `index.pck`   | 1.6 MB | ~1.5 MB | Game data: scenes, scripts, sprites, font, and audio. The 1.4 MB Ogg music loop dominates. |
 | everything else | <40 KB | —    | html, icons, audio worklets.           |
+
+> The earlier minimal scene (a bouncing icon) produced an **8 KB** `index.pck`.
+> Adding the tutorial's content pushed it to **~1.6 MB** — and it's almost all
+> the bundled audio, not code or sprites. Even so, the `pck` stays far under
+> Cloudflare's 25 MiB per-file limit; `index.wasm` remains the only file that
+> needs the pre-gzip + worker treatment. So real game content is cheap relative
+> to the engine: the engine is still ~95% of the download.
 
 ### With the custom slim engine template
 
@@ -72,7 +80,8 @@ so these live in the worker.
 ## Layout
 
 ```
-game/                 Godot project (project.godot, Main.tscn, Main.gd, icon.svg)
+game/                 Godot project — Dodge the Creeps (main.tscn, player/mob/hud
+                      scenes + scripts, art/, fonts/, icon.webp)
   export_presets.cfg  Web export preset
 cloudflare/_worker.js Advanced-mode worker copied into dist/ at build time
 scripts/
